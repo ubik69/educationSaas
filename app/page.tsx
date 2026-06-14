@@ -34,10 +34,7 @@ export default function LandingPage() {
           <div className="brand-glow pointer-events-none absolute left-1/2 top-[-6rem] h-[28rem] w-[42rem] -translate-x-1/2" />
           <div className="relative mx-auto grid max-w-6xl gap-14 px-5 pb-20 pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pt-24">
             <div className="animate-fade-up">
-              <Badge tone="brand" dot mono>
-                Personalisation engine
-              </Badge>
-              <h1 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.4rem]">
+              <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.4rem]">
                 <span className="text-gradient">The cloud cert exam is</span>
                 <br />
                 <span className="text-gradient">its own beast.</span>{" "}
@@ -561,9 +558,9 @@ function PriceTier({
     >
       {popular && (
         <div className="absolute -top-3 left-7">
-          <Badge tone="brand" mono>
+          <span className="inline-flex items-center rounded-full bg-brand px-3 py-1 text-xs font-semibold tracking-wide text-bg shadow-sm">
             Most popular
-          </Badge>
+          </span>
         </div>
       )}
       <h3 className="text-lg font-semibold">{name}</h3>
