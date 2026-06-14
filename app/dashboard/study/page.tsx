@@ -72,7 +72,7 @@ export default async function StudySessionPage({
             {skill.correct}/{skill.attempts} correct
           </p>
           <div className="mt-3">
-            <ProgressBar value={skill.mastery} height="h-1.5" />
+            <ProgressBar value={skill.accuracy} height="h-1.5" />
           </div>
         </div>
 
