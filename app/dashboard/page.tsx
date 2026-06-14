@@ -9,11 +9,12 @@ import {
 } from "@/components/dashboard/MetricsExplorer";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { buildSnapshot } from "@/lib/personalization";
-import { getSession } from "@/lib/session";
+import { getSession, getSelfRatings } from "@/lib/session";
 
 export default async function DashboardOverview() {
   const session = await getSession();
-  const snapshot = buildSnapshot(session?.userId);
+  const selfRatings = await getSelfRatings();
+  const snapshot = buildSnapshot(session?.userId, selfRatings);
 
   // Groups for the focus panel.
   const strongStats = snapshot.skillStats

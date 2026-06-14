@@ -1,13 +1,15 @@
 import type { NextRequest } from "next/server";
 import { buildSnapshot } from "@/lib/personalization";
 import { activeProvider, generateStudyContent } from "@/lib/ai/provider";
+import { getSelfRatings } from "@/lib/session";
 
 // GET /api/ai/study-session?skillId=skill_iam_users_roles
 // Returns AI-generated (or mock) study content for a skill. If no skillId is
 // given, it uses the engine's recommended weakest skill.
 export async function GET(req: NextRequest) {
   const skillId = req.nextUrl.searchParams.get("skillId");
-  const snapshot = buildSnapshot();
+  const selfRatings = await getSelfRatings();
+  const snapshot = buildSnapshot(undefined, selfRatings);
   const target =
     (skillId && snapshot.skillStats.find((s) => s.skillId === skillId)) ||
     snapshot.studySession.skill;

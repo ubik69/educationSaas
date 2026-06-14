@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { buildSnapshot } from "@/lib/personalization";
-import { getSession } from "@/lib/session";
+import { getSession, getSelfRatings } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Attempt history",
@@ -20,7 +20,8 @@ function formatDate(iso: string): string {
 
 export default async function AttemptsPage() {
   const session = await getSession();
-  const snapshot = buildSnapshot(session?.userId);
+  const selfRatings = await getSelfRatings();
+  const snapshot = buildSnapshot(session?.userId, selfRatings);
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-5 py-8 lg:px-8">

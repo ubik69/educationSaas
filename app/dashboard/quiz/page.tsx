@@ -7,7 +7,7 @@ import {
   getQuizPlan,
   getWeakPracticePlan,
 } from "@/lib/personalization";
-import { getSession } from "@/lib/session";
+import { getSession, getSelfRatings } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Practice quiz",
@@ -24,7 +24,8 @@ export default async function QuizPage({
   const weakPractice = focusParam === "weak";
 
   const session = await getSession();
-  const snapshot = buildSnapshot(session?.userId);
+  const selfRatings = await getSelfRatings();
+  const snapshot = buildSnapshot(session?.userId, selfRatings);
 
   // "Practice more" pulls random questions from every weak area; otherwise we
   // build a focused plan around a chosen (or recommended) skill.

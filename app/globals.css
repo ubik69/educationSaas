@@ -66,6 +66,51 @@
     border-radius: 4px;
   }
 
+  /* Onboarding slider — relies on accent-color (set per-skill inline) for the
+     fill/thumb hue, just sized up here so it reads as a deliberate control. */
+  .adept-range {
+    height: 1.75rem;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+  }
+  .adept-range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      currentColor var(--fill, 50%),
+      var(--color-surface-3) var(--fill, 50%)
+    );
+  }
+  .adept-range::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      currentColor var(--fill, 50%),
+      var(--color-surface-3) var(--fill, 50%)
+    );
+  }
+  .adept-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    margin-top: -7px;
+    height: 20px;
+    width: 20px;
+    border-radius: 999px;
+    background: currentColor;
+    border: 3px solid var(--color-bg);
+    box-shadow: 0 0 0 1px var(--color-line-strong);
+  }
+  .adept-range::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 999px;
+    background: currentColor;
+    border: 3px solid var(--color-bg);
+  }
+
   /* Subtle scrollbar that matches the dark theme */
   * {
     scrollbar-width: thin;
@@ -193,9 +238,26 @@
   }
 }
 
+/* Onboarding: green "improvement" line drawing itself across the skill map.
+   pathLength is normalised to 100 on the polyline, so this works for any line. */
+.onboarding-sweep {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: onboarding-sweep 2.2s var(--ease-out-soft) 0.2s forwards;
+}
+@keyframes onboarding-sweep {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .shimmer::after {
     animation: none;
+  }
+  .onboarding-sweep {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }

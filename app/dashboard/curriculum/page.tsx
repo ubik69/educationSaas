@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SkillStatusBadge } from "@/components/ui/SkillStatusBadge";
 import { buildCurriculum, buildSnapshot } from "@/lib/personalization";
-import { getSession } from "@/lib/session";
+import { getSession, getSelfRatings } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Curriculum",
@@ -12,7 +12,8 @@ export const metadata: Metadata = {
 
 export default async function CurriculumPage() {
   const session = await getSession();
-  const snapshot = buildSnapshot(session?.userId);
+  const selfRatings = await getSelfRatings();
+  const snapshot = buildSnapshot(session?.userId, selfRatings);
   const curriculum = buildCurriculum(snapshot);
 
   return (

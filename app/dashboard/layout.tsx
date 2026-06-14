@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/session";
+import { getSession, hasOnboarded } from "@/lib/session";
 import { Sidebar, MobileNav } from "@/components/dashboard/DashboardNav";
 
 export default async function DashboardLayout({
@@ -9,6 +9,8 @@ export default async function DashboardLayout({
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
+  // First-time users set their baseline before seeing the dashboard.
+  if (!(await hasOnboarded())) redirect("/onboarding");
 
   return (
     <div className="flex min-h-screen w-full">

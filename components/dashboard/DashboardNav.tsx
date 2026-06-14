@@ -66,7 +66,14 @@ export function Sidebar({ userName }: { userName: string }) {
       </nav>
       <div className="border-t border-line p-4">
         <UserChip userName={userName} />
-        <form action={signOut} className="mt-3">
+        <Link
+          href="/onboarding?redo=1"
+          className="mt-3 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-white/5 hover:text-fg"
+        >
+          <Icon name="target" size={18} />
+          Redo onboarding
+        </Link>
+        <form action={signOut}>
           <button
             type="submit"
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-white/5 hover:text-fg"

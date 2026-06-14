@@ -8,7 +8,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SkillStatusBadge } from "@/components/ui/SkillStatusBadge";
 import { buildSnapshot, getStudySession } from "@/lib/personalization";
 import { generateStudyContent } from "@/lib/ai/provider";
-import { getSession } from "@/lib/session";
+import { getSession, getSelfRatings } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Study session",
@@ -23,7 +23,8 @@ export default async function StudySessionPage({
   const skillParam = typeof params.skill === "string" ? params.skill : undefined;
 
   const session = await getSession();
-  const snapshot = buildSnapshot(session?.userId);
+  const selfRatings = await getSelfRatings();
+  const snapshot = buildSnapshot(session?.userId, selfRatings);
   const study = getStudySession(snapshot, skillParam);
   const skill = study.skill;
 

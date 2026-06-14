@@ -15,6 +15,7 @@ import {
   type QuizAttempt,
   type Skill,
 } from "@/lib/data";
+import { defaultSelfRatings, type SelfRatings } from "@/lib/onboarding";
 
 export type SkillStatus = "untested" | "weak" | "developing" | "strong";
 
@@ -29,11 +30,35 @@ export type SkillStat = {
   attempts: number;
   correct: number;
   incorrect: number;
-  accuracy: number; // 0-100
-  mastery: number; // 0-100, accuracy tempered by how much evidence we have
-  status: SkillStatus;
+  accuracy: number; // 0-100, raw quiz performance (correct/total)
+  mastery: number; // 0-100, EFFECTIVE mastery: self-rating prior blended with accuracy
+  status: SkillStatus; // derived from effective mastery
+  selfRating: number | null; // 0-10 from onboarding, null if unrated
   lastAttemptAt: string | null;
 };
+
+// How many "virtual questions" a self-rating is worth. With K=4, a single wrong
+// answer barely moves a confidently self-rated skill; after ~4-5 real answers,
+// performance dominates. This is the prior strength chosen during onboarding.
+const PRIOR_STRENGTH = 4;
+
+function statusFromMastery(mastery: number): SkillStatus {
+  if (mastery < 50) return "weak";
+  if (mastery < 80) return "developing";
+  return "strong";
+}
+
+// Effective mastery = Bayesian blend of the self-rating prior and quiz evidence.
+// effective = w·accuracy + (1-w)·prior,  w = attempts / (attempts + K).
+function blendMastery(
+  attempts: number,
+  accuracy: number,
+  prior: number,
+): number {
+  if (attempts === 0) return Math.round(prior);
+  const w = attempts / (attempts + PRIOR_STRENGTH);
+  return Math.round(w * accuracy + (1 - w) * prior);
+}
 
 export type DomainStat = {
   domainId: string;
@@ -93,13 +118,10 @@ function statusFor(attempts: number, accuracy: number): SkillStatus {
 // Mastery tempers raw accuracy by confidence: a single lucky correct answer
 // shouldn't read as "fully mastered". We blend accuracy toward a neutral 50%
 // based on how many attempts back it up.
-function masteryFor(attempts: number, accuracy: number): number {
-  if (attempts === 0) return 0;
-  const confidence = Math.min(1, attempts / 3);
-  return Math.round(accuracy * confidence + 50 * (1 - confidence));
-}
-
-function computeSkillStats(attempts: QuizAttempt[]): SkillStat[] {
+function computeSkillStats(
+  attempts: QuizAttempt[],
+  selfRatings: SelfRatings,
+): SkillStat[] {
   return skills.map((skill) => {
     const skillSet = skillSetById.get(skill.skillSetId)!;
     const domain = domainById.get(skillSet.domainId)!;
@@ -116,6 +138,26 @@ function computeSkillStats(attempts: QuizAttempt[]): SkillStat[] {
         .sort()
         .at(-1) ?? null;
 
+    const rawRating = selfRatings[skill.id];
+    const selfRating =
+      typeof rawRating === "number" ? Math.max(0, Math.min(10, rawRating)) : null;
+    const prior = selfRating !== null ? selfRating * 10 : null;
+
+    // With neither a self-rating nor any attempts, we genuinely have no signal.
+    let mastery: number;
+    let status: SkillStatus;
+    if (total === 0 && prior === null) {
+      mastery = 0;
+      status = "untested";
+    } else if (prior !== null) {
+      mastery = blendMastery(total, accuracy, prior);
+      status = statusFromMastery(mastery);
+    } else {
+      // Attempts but no self-rating: fall back to raw performance.
+      mastery = blendMastery(total, accuracy, 50);
+      status = statusFor(total, accuracy);
+    }
+
     return {
       skillId: skill.id,
       skillName: skill.name,
@@ -128,8 +170,9 @@ function computeSkillStats(attempts: QuizAttempt[]): SkillStat[] {
       correct,
       incorrect: total - correct,
       accuracy,
-      mastery: masteryFor(total, accuracy),
-      status: statusFor(total, accuracy),
+      mastery,
+      status,
+      selfRating,
       lastAttemptAt,
     };
   });
@@ -166,14 +209,20 @@ function computeDomainStats(attempts: QuizAttempt[]): DomainStat[] {
   });
 }
 
-// Rank tested skills weakest-first. We sort by accuracy ascending, then by
-// number of attempts (more evidence = more confident it's a real gap), then by
-// the domain's exam weight (a weak high-weight domain hurts the score more).
+// A skill carries signal if we've measured it OR the learner self-rated it.
+// This is what lets the engine make sense from minute one, post-onboarding.
+function hasSignal(s: SkillStat): boolean {
+  return s.attempts > 0 || s.selfRating !== null;
+}
+
+// Rank skills weakest-first by EFFECTIVE mastery (self-rating prior blended with
+// quiz performance), then by evidence, then by exam weight. Works before any
+// questions are answered because the self-rating provides the initial mastery.
 function rankWeakest(skillStats: SkillStat[]): SkillStat[] {
   return skillStats
-    .filter((s) => s.attempts > 0)
+    .filter(hasSignal)
     .sort((a, b) => {
-      if (a.accuracy !== b.accuracy) return a.accuracy - b.accuracy;
+      if (a.mastery !== b.mastery) return a.mastery - b.mastery;
       if (a.attempts !== b.attempts) return b.attempts - a.attempts;
       return b.examWeight - a.examWeight;
     });
@@ -183,14 +232,16 @@ function rankWeakest(skillStats: SkillStat[]): SkillStat[] {
 // always sending the learner to a 0% skill (a long climb), this favours the
 // "quick wins" — skills already part-way there, in heavier exam domains, where
 // pushing to exam-safe (80%) recovers the most marks for the least effort.
+// Operates on effective mastery, so a confident self-rating shapes day-one picks.
 function recommendationScore(skill: SkillStat): number {
-  if (skill.attempts === 0) return 0; // can't recommend what we haven't measured
+  if (!hasSignal(skill)) return 0; // nothing to go on yet
   if (skill.status === "strong") return skill.examWeight * 0.1; // already safe
 
-  // Closer to the pass line = quicker win. 0% still matters (floor 0.5),
-  // but a 50-79% skill scores higher because it's nearly there.
-  const winnability = 0.5 + 0.5 * (skill.accuracy / 80);
-  // More attempts = we're more sure the gap is real, not noise.
+  // Closer to the pass line = quicker win. A rock-bottom skill still matters
+  // (floor 0.5), but a 50-79% skill scores higher because it's nearly there.
+  const winnability = 0.5 + 0.5 * (Math.min(skill.mastery, 80) / 80);
+  // More evidence (real attempts) = more confident the gap is real, not noise.
+  // A pure self-rating still counts, just a touch less certain.
   const evidence = 0.6 + 0.4 * Math.min(1, skill.attempts / 2);
   return skill.examWeight * winnability * evidence;
 }
@@ -198,7 +249,7 @@ function recommendationScore(skill: SkillStat): number {
 // Rank skills by best return-on-effort toward passing (highest score first).
 function rankRecommended(skillStats: SkillStat[]): SkillStat[] {
   return skillStats
-    .filter((s) => s.attempts > 0 && s.status !== "strong")
+    .filter((s) => hasSignal(s) && s.status !== "strong")
     .sort((a, b) => recommendationScore(b) - recommendationScore(a));
 }
 
@@ -237,25 +288,44 @@ function buildQuizPlan(target: SkillStat, weakest: SkillStat[]): Question[] {
 }
 
 // The "why this skill" explanation adapts to whether you're shoring up a gap or
-// keeping a strength sharp — so it reads correctly whichever path the user picks.
+// keeping a strength sharp — and to whether the signal so far is your own
+// self-rating, real quiz answers, or a blend of both.
 function buildReason(skill: SkillStat): string {
-  const attemptWord = skill.attempts === 1 ? "attempt" : "attempts";
-  const base = `You've answered ${skill.attempts} ${attemptWord} on "${skill.skillName}" and got ${skill.correct} right (${skill.accuracy}% accuracy).`;
   const domainBit = `It's in the "${skill.domainName}" domain, ${skill.examWeight}% of the CLF-C02 exam`;
+
+  // Pre-quiz: the only signal is the onboarding self-rating.
+  if (skill.attempts === 0 && skill.selfRating !== null) {
+    const ratedLow = skill.selfRating <= 4;
+    const base = `You rated yourself ${skill.selfRating}/10 on "${skill.skillName}", so we're starting it at ${skill.mastery}%.`;
+    if (skill.status === "strong") {
+      return `${base} ${domainBit} — a quick check confirms it's locked in.`;
+    }
+    return `${base} ${domainBit}, so ${ratedLow ? "building this up" : "tightening this"} is your highest-value move right now. Answer a few questions and we'll refine this instantly.`;
+  }
+
+  const attemptWord = skill.attempts === 1 ? "attempt" : "attempts";
+  const ratedBit =
+    skill.selfRating !== null
+      ? ` Blended with your ${skill.selfRating}/10 self-rating, that puts your effective mastery at ${skill.mastery}%.`
+      : "";
+  const base = `You've answered ${skill.attempts} ${attemptWord} on "${skill.skillName}" and got ${skill.correct} right (${skill.accuracy}% accuracy).${ratedBit}`;
 
   if (skill.status === "strong") {
     return `${base} You're strong here — ${domainBit}, so a quick rep keeps these easy marks locked in.`;
   }
   if (skill.status === "developing") {
-    return `${base} You're already part-way there — ${domainBit}. Pushing this one skill from ${skill.accuracy}% to exam-safe (80%) recovers more marks per minute than starting a 0% skill from scratch, so it's your fastest route to a pass.`;
+    return `${base} You're already part-way there — ${domainBit}. Pushing this one skill to exam-safe (80%) recovers more marks per minute than starting a 0% skill from scratch, so it's your fastest route to a pass.`;
   }
   return `${base} ${domainBit}, so closing this gap moves your score the most right now.`;
 }
 
-export function buildSnapshot(userId = "user_1"): EngineSnapshot {
+export function buildSnapshot(
+  userId = "user_1",
+  selfRatings: SelfRatings = defaultSelfRatings,
+): EngineSnapshot {
   const attempts = allAttempts.filter((a) => a.userId === userId);
 
-  const skillStats = computeSkillStats(attempts);
+  const skillStats = computeSkillStats(attempts, selfRatings);
   const domainStats = computeDomainStats(attempts);
   const weakestSkills = rankWeakest(skillStats);
   const recommendedSkills = rankRecommended(skillStats);
@@ -265,13 +335,19 @@ export function buildSnapshot(userId = "user_1"): EngineSnapshot {
   const overallAccuracy =
     totalAttempts === 0 ? 0 : Math.round((totalCorrect / totalAttempts) * 100);
 
-  // Exam-weighted readiness. Domain weights sum to 100, so this yields a
-  // conservative percentage where untested domains drag readiness down.
+  // Exam-weighted readiness from EFFECTIVE mastery (self-rating + quiz blend),
+  // so onboarding alone produces a meaningful readiness score before any quiz.
+  // Each domain contributes its skills' average mastery × its exam weight.
   const examReadiness = Math.round(
-    domainStats.reduce(
-      (sum, d) => sum + (d.examWeight * d.accuracy) / 100,
-      0,
-    ),
+    domains.reduce((sum, domain) => {
+      const domainSkills = skillStats.filter((s) => s.domainId === domain.id);
+      const avgMastery =
+        domainSkills.length === 0
+          ? 0
+          : domainSkills.reduce((n, s) => n + s.mastery, 0) /
+            domainSkills.length;
+      return sum + (domain.examWeight * avgMastery) / 100;
+    }, 0),
   );
 
   const recentAttempts: AttemptDetail[] = [...attempts]
