@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { AiStudyContent } from "@/components/dashboard/AiStudyContent";
+import { LessonVideo } from "@/components/dashboard/LessonVideo";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
@@ -56,7 +57,7 @@ export default async function StudySessionPage({
         description={study.reason}
       >
         <Button href={`/dashboard/quiz?skill=${skill.skillId}`}>
-          Start the 5-question check
+          Start quiz for &ldquo;{skill.skillName}&rdquo;
           <Icon name="arrowRight" size={18} />
         </Button>
       </PageHeader>
@@ -108,6 +109,9 @@ export default async function StudySessionPage({
           </div>
         </div>
       </section>
+
+      {/* Lesson video (mock) */}
+      <LessonVideo title={skill.skillName} domain={skill.domainName} />
 
       {/* AI-generated lesson, remediation, flashcards */}
       <AiStudyContent skillId={skill.skillId} initial={aiContent} />
