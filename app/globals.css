@@ -251,6 +251,17 @@
   }
 }
 
+/* Projection dots + "in 4 weeks" banner fade in after the line has drawn. */
+.onboarding-annotation {
+  opacity: 0;
+  animation: onboarding-annotation 0.6s ease 1.7s forwards;
+}
+@keyframes onboarding-annotation {
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .shimmer::after {
@@ -259,5 +270,9 @@
   .onboarding-sweep {
     animation: none;
     stroke-dashoffset: 0;
+  }
+  .onboarding-annotation {
+    animation: none;
+    opacity: 1;
   }
 }

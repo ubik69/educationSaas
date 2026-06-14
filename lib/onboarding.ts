@@ -79,10 +79,20 @@ export function labelForLevel(level: number): LevelLabel {
   };
 }
 
-// A distinct colour per skill for the onboarding graph (hover shows the name).
-export function skillColor(index: number, total: number): string {
-  const hue = Math.round((index * 360) / Math.max(1, total));
-  return `hsl(${hue} 70% 58%)`;
+// Colour a 0-10 level on a red→amber→green scale: low = weak (red), high =
+// strong (green, near our brand emerald). Used for the graph dots and slider.
+export function levelColor(level: number): string {
+  const clamped = Math.max(0, Math.min(10, level));
+  const hue = clamped * 15; // 0 → red, 75 → amber, 150 → green
+  return `hsl(${hue} 72% 52%)`;
+}
+
+// The improved "in 4 weeks" projection: each rating is pushed 60% of the way
+// toward mastery (10), so weak skills jump the most and the green line lands in
+// the exam-safe zone — a visibly better curve than today's self-ratings.
+export function projectedLevel(level: number): number {
+  const clamped = Math.max(0, Math.min(10, level));
+  return Math.min(10, clamped + (10 - clamped) * 0.6);
 }
 
 // Default demo profile — used when no real ratings are present (e.g. the public

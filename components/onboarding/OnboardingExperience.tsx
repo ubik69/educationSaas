@@ -10,8 +10,8 @@ import { cn } from "@/components/ui/cn";
 import { SkillGraph, type GraphPoint } from "./SkillGraph";
 import {
   labelForLevel,
+  levelColor,
   onboardingSkills,
-  skillColor,
   SELF_RATINGS_STORAGE_KEY,
   type SelfRatings,
 } from "@/lib/onboarding";
@@ -26,18 +26,9 @@ export function OnboardingExperience() {
 
   const [phase, setPhase] = useState<Phase>("rate");
   const [index, setIndex] = useState(0);
+  // Every skill starts at the neutral middle (5) until the user moves it.
   const [ratings, setRatings] = useState<SelfRatings>({});
   const [revealStage, setRevealStage] = useState(0); // 0 line, 1 headline, 2 cta
-
-  // Prefill from a previous run (redo onboarding) or start at the default.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SELF_RATINGS_STORAGE_KEY);
-      if (raw) setRatings(JSON.parse(raw));
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const current = onboardingSkills[index];
   const level = ratings[current.skillId] ?? DEFAULT_LEVEL;
@@ -141,8 +132,8 @@ export function OnboardingExperience() {
             {/* Big live level + label */}
             <div className="mt-8 flex items-end gap-4">
               <span
-                className="font-mono text-6xl font-semibold leading-none"
-                style={{ color: skillColor(index, total) }}
+                className="font-mono text-6xl font-semibold leading-none transition-colors"
+                style={{ color: levelColor(level) }}
               >
                 {level}
               </span>
@@ -165,7 +156,7 @@ export function OnboardingExperience() {
                 className="adept-range w-full"
                 style={
                   {
-                    color: skillColor(index, total),
+                    color: levelColor(level),
                     "--fill": `${level * 10}%`,
                   } as CSSProperties
                 }
@@ -177,7 +168,7 @@ export function OnboardingExperience() {
               </div>
             </div>
 
-            <div className="mt-8 flex items-center gap-3">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button
                 variant="secondary"
                 onClick={() => setIndex((i) => Math.max(0, i - 1))}
@@ -189,6 +180,13 @@ export function OnboardingExperience() {
                 {isLast ? "See my plan" : "Next skill"}
                 <Icon name="arrowRight" size={18} />
               </Button>
+              <button
+                type="button"
+                onClick={() => void finish()}
+                className="ml-auto text-sm text-faint transition-colors hover:text-muted"
+              >
+                Skip all — set the rest to 5
+              </button>
             </div>
           </div>
 
@@ -230,16 +228,33 @@ export function OnboardingExperience() {
               <h1 className="mt-5 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
                 WE CAN GET YOU
                 <br />
-                <span className="text-brand">WAY BETTER</span> IN LESS
-                <br />
-                THAN 4 WEEKS.
+                <span className="text-brand">WAY BETTER.</span> FAST.
               </h1>
               <p className="mt-4 max-w-md text-muted">
                 You rated yourself{" "}
-                <span className="font-mono text-fg">{avg}/10</span> on average.
-                Our engine already knows which skills to push first — no
-                50-question warm-up required.
+                <span className="font-mono text-fg">{avg}/10</span>{" "}
+                on average. The green line is where you&apos;ll be in under 4
+                weeks — our engine already knows which skills to push first, with
+                no 50-question warm-up.
               </p>
+
+              {/* legend so the two lines are unmistakable */}
+              <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+                <span className="inline-flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, hsl(0 72% 52%), hsl(150 72% 52%))",
+                    }}
+                  />
+                  Today — your self-rating
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-0.5 w-5 rounded-full bg-brand" />
+                  In 4 weeks — projected
+                </span>
+              </div>
             </div>
             <div
               className={cn(
