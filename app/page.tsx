@@ -202,7 +202,7 @@ export default function LandingPage() {
                       <Icon name="target" size={18} />
                     </span>
                     <div>
-                      <p className="eyebrow">Weakest skill</p>
+                      <p className="eyebrow">Recommended focus</p>
                       <p className="text-sm font-semibold">
                         {session.skill.skillName}
                       </p>

@@ -56,6 +56,8 @@ export type StudySession = {
   skill: SkillStat;
   reason: string;
   quizPlan: Question[];
+  /** Short label for WHY the engine picked this skill, e.g. "Quick win". */
+  headline: string;
 };
 
 export type EngineSnapshot = {
@@ -68,9 +70,12 @@ export type EngineSnapshot = {
   examReadiness: number; // 0-100, exam-weighted
   skillStats: SkillStat[];
   weakestSkills: SkillStat[];
+  /** Skills ranked by best return-on-effort toward passing (the smart pick). */
+  recommendedSkills: SkillStat[];
   domainStats: DomainStat[];
   recentAttempts: AttemptDetail[];
   studySession: StudySession;
+  lastActivityAt: string | null;
 };
 
 const questionById = new Map(questions.map((q) => [q.id, q]));
@@ -174,6 +179,35 @@ function rankWeakest(skillStats: SkillStat[]): SkillStat[] {
     });
 }
 
+// Return-on-effort score for *recommending* what to study next. Rather than
+// always sending the learner to a 0% skill (a long climb), this favours the
+// "quick wins" — skills already part-way there, in heavier exam domains, where
+// pushing to exam-safe (80%) recovers the most marks for the least effort.
+function recommendationScore(skill: SkillStat): number {
+  if (skill.attempts === 0) return 0; // can't recommend what we haven't measured
+  if (skill.status === "strong") return skill.examWeight * 0.1; // already safe
+
+  // Closer to the pass line = quicker win. 0% still matters (floor 0.5),
+  // but a 50-79% skill scores higher because it's nearly there.
+  const winnability = 0.5 + 0.5 * (skill.accuracy / 80);
+  // More attempts = we're more sure the gap is real, not noise.
+  const evidence = 0.6 + 0.4 * Math.min(1, skill.attempts / 2);
+  return skill.examWeight * winnability * evidence;
+}
+
+// Rank skills by best return-on-effort toward passing (highest score first).
+function rankRecommended(skillStats: SkillStat[]): SkillStat[] {
+  return skillStats
+    .filter((s) => s.attempts > 0 && s.status !== "strong")
+    .sort((a, b) => recommendationScore(b) - recommendationScore(a));
+}
+
+function headlineFor(skill: SkillStat): string {
+  if (skill.status === "developing") return "Quick win";
+  if (skill.status === "weak") return "Biggest gap";
+  return "Keep it sharp";
+}
+
 // Build a 5-question study plan focused on the target skill. We start with the
 // skill's own questions, expand to its skill set, then its domain, and finally
 // fill from the learner's other weak areas so the plan is always 5 questions.
@@ -202,16 +236,20 @@ function buildQuizPlan(target: SkillStat, weakest: SkillStat[]): Question[] {
   return plan.slice(0, PLAN_SIZE);
 }
 
+// The "why this skill" explanation adapts to whether you're shoring up a gap or
+// keeping a strength sharp — so it reads correctly whichever path the user picks.
 function buildReason(skill: SkillStat): string {
-  const missed = skill.incorrect;
   const attemptWord = skill.attempts === 1 ? "attempt" : "attempts";
-  return (
-    `You've answered ${skill.attempts} ${attemptWord} on "${skill.skillName}" and got ` +
-    `${skill.correct} right (${skill.accuracy}% accuracy). It sits in the ` +
-    `"${skill.domainName}" domain, which is ${skill.examWeight}% of the CLF-C02 exam, ` +
-    `so closing this gap moves your score the most right now` +
-    (missed > 0 ? `. You've missed it ${missed} ${missed === 1 ? "time" : "times"}.` : ".")
-  );
+  const base = `You've answered ${skill.attempts} ${attemptWord} on "${skill.skillName}" and got ${skill.correct} right (${skill.accuracy}% accuracy).`;
+  const domainBit = `It's in the "${skill.domainName}" domain, ${skill.examWeight}% of the CLF-C02 exam`;
+
+  if (skill.status === "strong") {
+    return `${base} You're strong here — ${domainBit}, so a quick rep keeps these easy marks locked in.`;
+  }
+  if (skill.status === "developing") {
+    return `${base} You're already part-way there — ${domainBit}. Pushing this one skill from ${skill.accuracy}% to exam-safe (80%) recovers more marks per minute than starting a 0% skill from scratch, so it's your fastest route to a pass.`;
+  }
+  return `${base} ${domainBit}, so closing this gap moves your score the most right now.`;
 }
 
 export function buildSnapshot(userId = "user_1"): EngineSnapshot {
@@ -220,6 +258,7 @@ export function buildSnapshot(userId = "user_1"): EngineSnapshot {
   const skillStats = computeSkillStats(attempts);
   const domainStats = computeDomainStats(attempts);
   const weakestSkills = rankWeakest(skillStats);
+  const recommendedSkills = rankRecommended(skillStats);
 
   const totalAttempts = attempts.length;
   const totalCorrect = attempts.filter((a) => a.isCorrect).length;
@@ -249,12 +288,17 @@ export function buildSnapshot(userId = "user_1"): EngineSnapshot {
       };
     });
 
-  const target = weakestSkills[0] ?? skillStats[0];
+  // The recommended skill is the best return-on-effort pick (a "quick win"),
+  // falling back to the absolute weakest if there's nothing in between.
+  const target = recommendedSkills[0] ?? weakestSkills[0] ?? skillStats[0];
   const studySession: StudySession = {
     skill: target,
     reason: buildReason(target),
     quizPlan: buildQuizPlan(target, weakestSkills),
+    headline: headlineFor(target),
   };
+
+  const lastActivityAt = recentAttempts[0]?.answeredAt ?? null;
 
   return {
     userId,
@@ -266,9 +310,29 @@ export function buildSnapshot(userId = "user_1"): EngineSnapshot {
     examReadiness,
     skillStats,
     weakestSkills,
+    recommendedSkills,
     domainStats,
     recentAttempts,
     studySession,
+    lastActivityAt,
+  };
+}
+
+// Build a full study session for an arbitrary skill (used when the learner
+// chooses a specific weak OR strong skill to work on). Falls back to the
+// engine's recommended weakest skill when no/unknown skillId is given.
+export function getStudySession(
+  snapshot: EngineSnapshot,
+  skillId?: string,
+): StudySession {
+  if (!skillId) return snapshot.studySession;
+  const skill = snapshot.skillStats.find((s) => s.skillId === skillId);
+  if (!skill) return snapshot.studySession;
+  return {
+    skill,
+    reason: buildReason(skill),
+    quizPlan: buildQuizPlan(skill, snapshot.weakestSkills),
+    headline: headlineFor(skill),
   };
 }
 
@@ -282,6 +346,38 @@ export function getQuizPlan(
     (skillId && snapshot.skillStats.find((s) => s.skillId === skillId)) ||
     snapshot.studySession.skill;
   return buildQuizPlan(target, snapshot.weakestSkills);
+}
+
+// "Practice more": a freshly shuffled set of questions drawn from everything the
+// learner is currently weak at (weak + developing skills), expanding to their
+// skill sets if there aren't enough. Random order each call.
+export function getWeakPracticePlan(
+  snapshot: EngineSnapshot,
+  size = 5,
+): Question[] {
+  const weak = snapshot.skillStats.filter(
+    (s) => s.attempts > 0 && s.status !== "strong",
+  );
+  const weakSkillIds = new Set(weak.map((s) => s.skillId));
+  const weakSkillSetIds = new Set(weak.map((s) => s.skillSetId));
+
+  const fromSkills = questions.filter((q) => weakSkillIds.has(q.skillId));
+  const fromSets = questions.filter((q) => weakSkillSetIds.has(q.skillSetId));
+
+  const pool: Question[] = [];
+  const seen = new Set<string>();
+  for (const q of [...fromSkills, ...fromSets, ...questions]) {
+    if (seen.has(q.id)) continue;
+    seen.add(q.id);
+    pool.push(q);
+  }
+
+  // Fisher–Yates shuffle for genuine randomness each request.
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, size);
 }
 
 // Curriculum tree helper for the syllabus / curriculum view.

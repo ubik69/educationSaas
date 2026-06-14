@@ -6,19 +6,36 @@ import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SkillStatusBadge } from "@/components/ui/SkillStatusBadge";
-import { buildSnapshot } from "@/lib/personalization";
+import { buildSnapshot, getStudySession } from "@/lib/personalization";
 import { generateStudyContent } from "@/lib/ai/provider";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
-  title: "Today's session",
+  title: "Study session",
 };
 
-export default async function StudySessionPage() {
+export default async function StudySessionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const skillParam = typeof params.skill === "string" ? params.skill : undefined;
+
   const session = await getSession();
   const snapshot = buildSnapshot(session?.userId);
-  const study = snapshot.studySession;
+  const study = getStudySession(snapshot, skillParam);
   const skill = study.skill;
+
+  // Whether this is the engine's recommended weakest skill or one the user chose.
+  const isRecommended =
+    !skillParam || skillParam === snapshot.studySession.skill.skillId;
+  const eyebrow =
+    skill.status === "strong"
+      ? "Strengthen a strength"
+      : isRecommended
+        ? "Today's study session"
+        : "Study session";
 
   const aiContent = await generateStudyContent({
     skillId: skill.skillId,
@@ -33,7 +50,7 @@ export default async function StudySessionPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-5 py-8 lg:px-8">
       <PageHeader
-        eyebrow="Today's study session"
+        eyebrow={eyebrow}
         title={skill.skillName}
         description={study.reason}
       >
@@ -45,41 +62,48 @@ export default async function StudySessionPage() {
 
       {/* Why this skill */}
       <section className="grid gap-4 sm:grid-cols-3">
-        <div className="card flex flex-col justify-between p-5">
+        <div className="card p-5">
           <p className="text-xs text-faint">Your accuracy</p>
+          <p className="mt-3 font-mono text-2xl font-semibold text-fg">
+            {skill.accuracy}%
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {skill.correct}/{skill.attempts} correct
+          </p>
           <div className="mt-3">
-            <p className="font-mono text-2xl font-semibold text-fg">
-              {skill.accuracy}%
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              {skill.correct}/{skill.attempts} correct
-            </p>
-            <div className="mt-3">
-              <ProgressBar value={skill.mastery} height="h-1.5" />
-            </div>
+            <ProgressBar value={skill.mastery} height="h-1.5" />
           </div>
         </div>
-        <div className="card flex flex-col justify-between p-5">
+
+        <div className="card p-5">
           <p className="text-xs text-faint">Where it sits</p>
-          <div className="mt-3 space-y-2">
-            <p className="text-sm font-medium">{skill.skillSetName}</p>
-            <Badge mono tone="neutral">
-              {skill.domainName}
-            </Badge>
-          </div>
-        </div>
-        <div className="card flex flex-col justify-between p-5">
-          <p className="text-xs text-faint">Why it matters</p>
-          <div className="mt-3">
-            <p className="font-mono text-2xl font-semibold text-brand">
-              {skill.examWeight}%
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              of the exam is this domain
-            </p>
-            <div className="mt-3">
-              <SkillStatusBadge status={skill.status} />
+          <dl className="mt-3 space-y-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-faint">Domain</dt>
+              <dd className="truncate font-medium">{skill.domainName}</dd>
             </div>
+            <div className="flex items-center justify-between gap-3 border-t border-line pt-2.5">
+              <dt className="text-faint">Skill set</dt>
+              <dd className="truncate font-medium">{skill.skillSetName}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-line pt-2.5">
+              <dt className="text-faint">Status</dt>
+              <dd>
+                <SkillStatusBadge status={skill.status} />
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="card p-5">
+          <p className="text-xs text-faint">Why it matters</p>
+          <p className="mt-3 font-mono text-2xl font-semibold text-brand">
+            {skill.examWeight}%
+          </p>
+          <p className="mt-1 text-xs text-muted">of the exam is this domain</p>
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-line bg-surface-2/50 px-3 py-2 text-xs text-muted">
+            <Icon name="gauge" size={14} className="shrink-0 text-faint" />
+            {study.headline}
           </div>
         </div>
       </section>
