@@ -175,24 +175,24 @@ export function MetricsExplorer({
       <div className="card overflow-hidden">
         {active === "accuracy" && (
           <Panel
-            title="Answer history"
+            title="Accuracy by domain"
             subtitle={`${rangeCorrect(filtered)}/${filtered.length} correct · ${rangeAccuracy(filtered)}% in this range`}
             range={range}
             onRange={setRange}
-            action={<PracticeMore />}
           >
-            <AttemptList items={filtered} />
+            <DomainBreakdown items={filtered} />
           </Panel>
         )}
 
         {active === "attempts" && (
           <Panel
-            title="Where your attempts went"
+            title="Questions you attempted"
             subtitle={`${filtered.length} questions answered in this range`}
             range={range}
             onRange={setRange}
+            action={<PracticeMore />}
           >
-            <DomainBreakdown items={filtered} />
+            <AttemptList items={filtered} />
           </Panel>
         )}
 
