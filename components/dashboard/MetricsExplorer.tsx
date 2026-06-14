@@ -446,18 +446,33 @@ function DomainBreakdown({ items }: { items: MetricAttempt[] }) {
   if (byDomain.length === 0) return <Empty>No attempts in this range.</Empty>;
 
   return (
-    <ul className="space-y-4 p-5 sm:p-6">
+    <ul className="divide-y divide-line">
       {byDomain.map(([domain, d]) => {
         const acc = Math.round((d.correct / d.total) * 100);
         return (
           <li key={domain}>
-            <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-              <span className="truncate font-medium">{domain}</span>
-              <span className="shrink-0 font-mono text-xs text-faint">
-                {d.total} Qs · {acc}%
+            <Link
+              href={`/dashboard/curriculum?q=${encodeURIComponent(domain)}`}
+              className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.02] sm:px-6"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate font-medium">{domain}</span>
+                  <span className="shrink-0 font-mono text-xs text-faint">
+                    {d.total} Qs · {acc}%
+                  </span>
+                </div>
+                <ProgressBar value={acc} height="h-1.5" />
+              </div>
+              <span className="hidden shrink-0 items-center gap-1 text-xs font-medium text-muted transition-colors group-hover:text-brand sm:flex">
+                View skills
+                <Icon
+                  name="arrowRight"
+                  size={14}
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
               </span>
-            </div>
-            <ProgressBar value={acc} height="h-1.5" />
+            </Link>
           </li>
         );
       })}

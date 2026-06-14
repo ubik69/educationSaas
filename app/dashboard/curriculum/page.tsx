@@ -9,7 +9,14 @@ export const metadata: Metadata = {
   title: "Curriculum",
 };
 
-export default async function CurriculumPage() {
+export default async function CurriculumPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const initialQuery = typeof params.q === "string" ? params.q : "";
+
   const session = await getSession();
   const selfRatings = await getSelfRatings();
   const snapshot = buildSnapshot(session?.userId, selfRatings);
@@ -27,7 +34,7 @@ export default async function CurriculumPage() {
         </Badge>
       </PageHeader>
 
-      <CurriculumExplorer domains={curriculum} />
+      <CurriculumExplorer domains={curriculum} initialQuery={initialQuery} />
     </div>
   );
 }

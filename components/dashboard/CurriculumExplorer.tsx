@@ -27,10 +27,12 @@ function matchesFilter(status: SkillStatus, filter: Filter): boolean {
 
 export function CurriculumExplorer({
   domains,
+  initialQuery = "",
 }: {
   domains: CurriculumDomain[];
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<Filter>("all");
 
   const q = query.trim().toLowerCase();
