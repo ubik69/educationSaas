@@ -64,7 +64,7 @@ export function SiteFooter() {
         <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 text-xs text-faint sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Adept Labs. A mock product demo.</p>
           <p className="font-mono">
-            Not affiliated with AWS or getcracked.io · Built with Next.js
+            Built with Love by yeet
           </p>
         </div>
       </div>
