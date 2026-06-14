@@ -15,7 +15,7 @@ import {
   SELF_RATINGS_STORAGE_KEY,
   type SelfRatings,
 } from "@/lib/onboarding";
-import { saveSelfRatings } from "@/app/onboarding/actions";
+import { markOnboarded, saveSelfRatings } from "@/app/onboarding/actions";
 
 type Phase = "rate" | "reveal" | "trial";
 const DEFAULT_LEVEL = 5;
@@ -74,6 +74,8 @@ export function OnboardingExperience() {
     } catch {
       /* ignore */
     }
+    // Save ratings only — marking onboarded here would refresh the route and
+    // bounce us to /dashboard, skipping the reveal. Onboarded is set on exit.
     await saveSelfRatings(JSON.stringify(complete));
     setPhase("reveal");
   }
@@ -81,6 +83,12 @@ export function OnboardingExperience() {
   function next() {
     if (isLast) void finish();
     else setIndex((i) => i + 1);
+  }
+
+  // Finish onboarding and head to the dashboard.
+  async function enterApp() {
+    await markOnboarded();
+    router.push("/dashboard");
   }
 
   // Stage the reveal: line sweeps, then headline, then the CTA.
@@ -317,7 +325,7 @@ export function OnboardingExperience() {
               <Button
                 size="lg"
                 className="w-full"
-                onClick={() => router.push("/dashboard")}
+                onClick={() => void enterApp()}
               >
                 Start free trial
                 <Icon name="arrowRight" size={18} />
