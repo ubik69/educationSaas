@@ -313,7 +313,7 @@ export function OnboardingExperience() {
                 </div>
               ))}
             </div>
-            <div className="mt-7 space-y-2.5">
+            <div className="mt-7">
               <Button
                 size="lg"
                 className="w-full"
@@ -322,13 +322,6 @@ export function OnboardingExperience() {
                 Start free trial
                 <Icon name="arrowRight" size={18} />
               </Button>
-              <button
-                type="button"
-                onClick={() => router.push("/dashboard")}
-                className="w-full py-1 text-sm text-faint transition-colors hover:text-muted"
-              >
-                Skip — just take me in
-              </button>
             </div>
           </div>
           <p className="relative mt-4 font-mono text-xs text-faint">
