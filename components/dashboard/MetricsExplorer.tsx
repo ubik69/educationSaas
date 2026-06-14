@@ -467,10 +467,16 @@ function DomainBreakdown({ items }: { items: MetricAttempt[] }) {
 
 function PracticeMore() {
   return (
-    <Button href="/dashboard/quiz?focus=weak" size="sm">
-      <Icon name="zap" size={15} />
-      Practice more
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button href="/dashboard/quiz?focus=weak" variant="secondary" size="sm">
+        <Icon name="zap" size={15} />
+        Practice more
+      </Button>
+      <Button href="/dashboard/study" size="sm">
+        <Icon name="sparkles" size={15} />
+        Start today&apos;s session
+      </Button>
+    </div>
   );
 }
 

@@ -182,7 +182,7 @@ function HeroSkill({
   const isQuickWin = mode === "weak" && skill.status === "developing";
   const heroTag = isQuickWin ? "Quick win" : copy.heroTag;
   const heroSubtitle = isQuickWin
-    ? `Push ${skill.accuracy}% to exam-safe — your fastest route to a pass`
+    ? `Push ${skill.mastery}% to exam-safe — your fastest route to a pass`
     : copy.heroSubtitle;
 
   return (
@@ -203,7 +203,7 @@ function HeroSkill({
           <div className="mt-4 flex items-center gap-3">
             <ProgressBar value={skill.mastery} className="max-w-56" />
             <span className="shrink-0 font-mono text-xs text-faint">
-              {skill.correct}/{skill.attempts} · {skill.accuracy}%
+              {skill.mastery}% mastery
             </span>
           </div>
         </div>
@@ -233,7 +233,7 @@ function SkillRow({ skill, cta }: { skill: SkillStat; cta: string }) {
           <div className="mt-2 flex items-center gap-3">
             <ProgressBar value={skill.mastery} height="h-1.5" />
             <span className="shrink-0 font-mono text-xs text-faint">
-              {skill.accuracy}%
+              {skill.mastery}%
             </span>
           </div>
         </div>
