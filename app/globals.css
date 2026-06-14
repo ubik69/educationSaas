@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * Adept design system — one calm dark theme, used on every page.
+ * Near-black neutral canvas, a single refined emerald accent, Geist
+ * Sans for UI and Geist Mono for small "programming" labels/metrics.
+ * ------------------------------------------------------------------ */
+
+@theme {
+  /* Surfaces */
+  --color-bg: #08090a;
+  --color-surface: #0d0e10;
+  --color-surface-2: #131417;
+  --color-surface-3: #181a1e;
+  --color-line: #ffffff14;
+  --color-line-strong: #ffffff24;
+
+  /* Text */
+  --color-fg: #f4f4f5;
+  --color-muted: #a1a1aa;
+  --color-faint: #71717a;
+
+  /* Brand + status */
+  --color-brand: #34d399;
+  --color-brand-strong: #10b981;
+  --color-brand-dim: #0c2a22;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-info: #60a5fa;
+
+  /* Type */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Easing */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    background-color: var(--color-bg);
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-brand) 30%, transparent);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-brand) 70%, transparent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Subtle scrollbar that matches the dark theme */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-line-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Reusable component classes. Kept in @layer components so that Tailwind
+ * utilities (later layer) can still override them when composed.
+ * ------------------------------------------------------------------ */
+
+@layer components {
+  /* Faint dotted-grid backdrop for hero / section bands */
+  .bg-grid {
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--color-fg) 7%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+    background-position: -1px -1px;
+    -webkit-mask-image: radial-gradient(
+      ellipse 100% 70% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 100% 70% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+  }
+
+  /* Soft brand glow used very sparingly behind the hero headline */
+  .brand-glow {
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--color-brand) 22%, transparent),
+      transparent
+    );
+    filter: blur(40px);
+  }
+
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 1rem;
+  }
+
+  .card-hover {
+    transition:
+      border-color 0.2s var(--ease-out-soft),
+      background-color 0.2s var(--ease-out-soft),
+      transform 0.2s var(--ease-out-soft);
+  }
+  .card-hover:hover {
+    border-color: var(--color-line-strong);
+    background-color: var(--color-surface-2);
+  }
+
+  /* Mono eyebrow label — the main "for programming" cue, used lightly */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+
+  .text-gradient {
+    background: linear-gradient(180deg, #ffffff 0%, #b9bbc0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.6s var(--ease-out-soft) both;
+  }
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--color-fg) 8%, transparent),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+}
+
+/* Keyframes (not subject to cascade layers) */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .shimmer::after {
+    animation: none;
+  }
+}
