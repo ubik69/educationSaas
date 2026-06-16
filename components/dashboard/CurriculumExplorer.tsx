@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/Badge";
+import { Badge, type Tone } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { SkillStatusBadge } from "@/components/ui/SkillStatusBadge";
 import { cn } from "@/components/ui/cn";
 import type { CurriculumDomain, SkillStatus } from "@/lib/personalization";
 
@@ -18,6 +17,27 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "developing", label: "Developing" },
   { id: "strong", label: "Strong" },
 ];
+
+// This page shows each skill's raw ACCURACY, so its badge + filters are
+// accuracy-based too (not the engine's mastery-based status), so a 100% skill
+// never reads "Developing". 100% gets its own "Aced" label.
+function accStatusKey(attempts: number, accuracy: number): SkillStatus {
+  if (attempts === 0) return "untested";
+  if (accuracy >= 80) return "strong";
+  if (accuracy >= 50) return "developing";
+  return "weak";
+}
+
+function accBadge(
+  attempts: number,
+  accuracy: number,
+): { tone: Tone; label: string } {
+  if (attempts === 0) return { tone: "neutral", label: "Untested" };
+  if (accuracy === 100) return { tone: "brand", label: "Aced" };
+  if (accuracy >= 80) return { tone: "brand", label: "Strong" };
+  if (accuracy >= 50) return { tone: "warning", label: "Developing" };
+  return { tone: "danger", label: "Weak" };
+}
 
 function matchesFilter(status: SkillStatus, filter: Filter): boolean {
   if (filter === "all") return true;
@@ -51,7 +71,10 @@ export function CurriculumExplorer({
                   sk.skillName.toLowerCase().includes(q) ||
                   ss.name.toLowerCase().includes(q) ||
                   d.name.toLowerCase().includes(q);
-                return inText && matchesFilter(sk.status, filter);
+                return (
+                  inText &&
+                  matchesFilter(accStatusKey(sk.attempts, sk.accuracy), filter)
+                );
               }),
             }))
             .filter((ss) => ss.skills.length > 0),
@@ -141,10 +164,10 @@ export function CurriculumExplorer({
                   </Badge>
                   <div className="w-28">
                     <div className="mb-1 flex justify-between text-xs text-faint">
-                      <span>acc</span>
-                      <span className="font-mono">{domain.accuracy}%</span>
+                      <span>mastery</span>
+                      <span className="font-mono">{domain.mastery}%</span>
                     </div>
-                    <ProgressBar value={domain.accuracy} height="h-1.5" />
+                    <ProgressBar value={domain.mastery} height="h-1.5" />
                   </div>
                 </div>
               </div>
@@ -181,18 +204,25 @@ function SkillTile({
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-medium leading-snug">{skill.skillName}</p>
-        <SkillStatusBadge status={skill.status} />
+        {(() => {
+          const b = accBadge(skill.attempts, skill.accuracy);
+          return (
+            <Badge tone={b.tone} dot>
+              {b.label}
+            </Badge>
+          );
+        })()}
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <ProgressBar value={skill.mastery} height="h-1.5" />
+        <ProgressBar value={skill.attempts > 0 ? skill.accuracy : 0} height="h-1.5" />
         <span className="shrink-0 font-mono text-xs text-faint">
-          {skill.mastery}%
+          {skill.attempts > 0 ? `${skill.accuracy}%` : "—"}
         </span>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-line pt-2.5">
         <span className="font-mono text-xs text-faint">
           {skill.attempts > 0
-            ? `${skill.correct}/${skill.attempts} answered`
+            ? `${skill.correct}/${skill.attempts} correct`
             : "not yet tested"}
         </span>
         <span className="inline-flex items-center gap-1 text-xs font-medium text-muted transition-colors group-hover:text-brand">

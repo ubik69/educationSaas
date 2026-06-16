@@ -468,6 +468,7 @@ export type CurriculumDomain = {
   name: string;
   examWeight: number;
   accuracy: number;
+  mastery: number; // average effective mastery across the domain's skills
   skillSets: CurriculumSkillSet[];
 };
 
@@ -477,20 +478,31 @@ export function buildCurriculum(snapshot: EngineSnapshot): CurriculumDomain[] {
     const domainStat = snapshot.domainStats.find(
       (d) => d.domainId === domain.id,
     );
+    const builtSkillSets = skillSets
+      .filter((ss) => ss.domainId === domain.id)
+      .map((ss) => ({
+        id: ss.id,
+        name: ss.name,
+        skills: skills
+          .filter((s) => s.skillSetId === ss.id)
+          .map((s) => statById.get(s.id)!),
+      }));
+
+    const allSkills = builtSkillSets.flatMap((ss) => ss.skills);
+    const mastery =
+      allSkills.length === 0
+        ? 0
+        : Math.round(
+            allSkills.reduce((n, s) => n + s.mastery, 0) / allSkills.length,
+          );
+
     return {
       id: domain.id,
       name: domain.name,
       examWeight: domain.examWeight,
       accuracy: domainStat?.accuracy ?? 0,
-      skillSets: skillSets
-        .filter((ss) => ss.domainId === domain.id)
-        .map((ss) => ({
-          id: ss.id,
-          name: ss.name,
-          skills: skills
-            .filter((s) => s.skillSetId === ss.id)
-            .map((s) => statById.get(s.id)!),
-        })),
+      mastery,
+      skillSets: builtSkillSets,
     };
   });
 }
