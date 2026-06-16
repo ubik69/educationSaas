@@ -241,8 +241,10 @@ function recommendationScore(skill: SkillStat): number {
   // (floor 0.5), but a 50-79% skill scores higher because it's nearly there.
   const winnability = 0.5 + 0.5 * (Math.min(skill.mastery, 80) / 80);
   // More evidence (real attempts) = more confident the gap is real, not noise.
-  // A pure self-rating still counts, just a touch less certain.
-  const evidence = 0.6 + 0.4 * Math.min(1, skill.attempts / 2);
+  // Smooth ramp 0.6 -> 1.0 with the same shape and K as the mastery blend, so
+  // it never hard-caps and a pure self-rating still counts, just less certainly.
+  const evidence =
+    0.6 + 0.4 * (skill.attempts / (skill.attempts + PRIOR_STRENGTH));
   return skill.examWeight * winnability * evidence;
 }
 
